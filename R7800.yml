@@ -1,0 +1,268 @@
+#
+# This is free software, lisence use MIT.
+# 
+# Copyright (C) 2019 P3TERX <https://p3terx.com>
+# Copyright (C) 2020 KFERMercer <KFER.Mercer@gmail.com>
+# 
+# <https://github.com/KFERMercer/OpenWrt-CI>
+#
+
+name: OpenWrt-R7800-Test
+
+on:
+  push:
+    branches: 
+      - master
+  # schedule:
+  #   - cron: 0 20 * * *
+  release:
+    types: [published]
+
+jobs:
+
+  build_openwrt:
+
+    name: Build OpenWrt firmware
+
+    runs-on: ubuntu-latest
+
+    if: github.event.repository.owner.id == github.event.sender.id
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: master
+
+      - name: Space cleanup
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          docker rmi `docker images -q`
+          sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
+          sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* adoptopenjdk* mysql* php* mongodb* dotnet* moby* snapd* || true
+          sudo -E apt-get update
+          sudo -E apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python3 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs gcc-multilib g++-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler antlr3 gperf swig libtinfo5
+          sudo -E apt-get -y autoremove --purge
+          sudo -E apt-get clean
+
+          # sudo mkdir -p -m 777 /mnt/openwrt/bin /mnt/openwrt/build_dir/host /mnt/openwrt/build_dir/hostpkg /mnt/openwrt/dl /mnt/openwrt/feeds /mnt/openwrt/staging_dir
+          # ln -s /mnt/openwrt/bin ./bin
+          # mkdir -p ./build_dir
+          # ln -s -f /mnt/openwrt/build_dir/host ./build_dir/host
+          # ln -s -f /mnt/openwrt/build_dir/hostpkg ./build_dir/hostpkg
+          # ln -s /mnt/openwrt/dl ./dl
+          # ln -s /mnt/openwrt/feeds ./feeds
+          # ln -s /mnt/openwrt/staging_dir ./staging_dir
+
+          df -h
+
+      - name: Update feeds
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Generate configuration file
+        run: |
+          rm -f ./.config*
+          touch ./.config
+
+          #
+          # 在 cat >> .config <<EOF 到 EOF 之间粘贴你的编译配置, 需注意缩进关系
+          # 例如:
+          cat >> .config <<EOF
+          CONFIG_MODULES=y
+          CONFIG_HAVE_DOT_CONFIG=y
+          CONFIG_HOST_OS_LINUX=y
+          CONFIG_TARGET_ipq806x=y
+          CONFIG_TARGET_ipq806x_generic=y
+          CONFIG_TARGET_ipq806x_generic_DEVICE_netgear_r7800=y
+          CONFIG_TARGET_IMAGES_GZIP=y
+          CONFIG_HAS_SUBTARGETS=y
+          CONFIG_HAS_DEVICES=y
+          CONFIG_TARGET_BOARD="ipq806x"
+          CONFIG_TARGET_SUBTARGET="generic"
+          CONFIG_TARGET_PROFILE="DEVICE_netgear_r7800"
+          CONFIG_TARGET_ARCH_PACKAGES="arm_cortex-a15_neon-vfpv4"
+          CONFIG_DEFAULT_TARGET_OPTIMIZATION="-Os -pipe"
+          CONFIG_CPU_TYPE="cortex-a15+neon-vfpv4"
+          CONFIG_ARIA2_BITTORRENT=y
+          CONFIG_ARIA2_NOXML=y
+          CONFIG_ARIA2_OPENSSL=y
+          CONFIG_ARIA2_WEBSOCKET=y
+          CONFIG_GNUTLS_ALPN=y
+          CONFIG_GNUTLS_ANON=y
+          CONFIG_GNUTLS_DTLS_SRTP=y
+          CONFIG_GNUTLS_HEARTBEAT=y
+          CONFIG_GNUTLS_OCSP=y
+          CONFIG_GNUTLS_PSK=y
+          CONFIG_PACKAGE_6in4=y
+          CONFIG_PACKAGE_6rd=y
+          CONFIG_PACKAGE_6to4=y
+          CONFIG_PACKAGE_NTFS-3G_HAS_PROBE=y
+          # CONFIG_PACKAGE_adbyby is not set
+          CONFIG_PACKAGE_aria2=y
+          CONFIG_PACKAGE_ariang=y
+          CONFIG_PACKAGE_attr=y
+          # CONFIG_PACKAGE_autosamba is not set
+          CONFIG_PACKAGE_avahi-dbus-daemon=y
+          CONFIG_PACKAGE_baidupcs-web=y
+          CONFIG_PACKAGE_dbus=y
+          # CONFIG_PACKAGE_etherwake is not set
+          CONFIG_PACKAGE_hd-idle=y
+          # CONFIG_PACKAGE_iptables-mod-ipsec is not set
+          CONFIG_PACKAGE_kmod-fuse=y
+          # CONFIG_PACKAGE_kmod-ipsec4 is not set
+          # CONFIG_PACKAGE_kmod-ipsec6 is not set
+          # CONFIG_PACKAGE_kmod-ipt-ipsec is not set
+          CONFIG_PACKAGE_kmod-iptunnel=y
+          # CONFIG_PACKAGE_kmod-iptunnel6 is not set
+          # CONFIG_PACKAGE_kmod-nf-conntrack-netlink is not set
+          CONFIG_PACKAGE_kmod-sit=y
+          # CONFIG_PACKAGE_kmod-tun is not set
+          CONFIG_PACKAGE_libattr=y
+          CONFIG_PACKAGE_libavahi-client=y
+          CONFIG_PACKAGE_libavahi-dbus-support=y
+          CONFIG_PACKAGE_libbz2=y
+          CONFIG_PACKAGE_libcap=y
+          # CONFIG_PACKAGE_libcares is not set
+          CONFIG_PACKAGE_libdaemon=y
+          CONFIG_PACKAGE_libdbus=y
+          CONFIG_PACKAGE_libexif=y
+          CONFIG_PACKAGE_libexpat=y
+          CONFIG_PACKAGE_libffmpeg-audio-dec=y
+          CONFIG_PACKAGE_libflac=y
+          CONFIG_PACKAGE_libgnutls=y
+          CONFIG_PACKAGE_libid3tag=y
+          CONFIG_PACKAGE_libjpeg-turbo=y
+          # CONFIG_PACKAGE_libmbedtls is not set
+          # CONFIG_PACKAGE_libminiupnpc is not set
+          # CONFIG_PACKAGE_libnatpmp is not set
+          CONFIG_PACKAGE_libnettle=y
+          CONFIG_PACKAGE_libogg=y
+          CONFIG_PACKAGE_libpopt=y
+          CONFIG_PACKAGE_libreadline=y
+          CONFIG_PACKAGE_libsqlite3=y
+          CONFIG_PACKAGE_libtasn1=y
+          CONFIG_PACKAGE_libtirpc=y
+          CONFIG_PACKAGE_liburing=y
+          CONFIG_PACKAGE_libvorbis=y
+          # CONFIG_PACKAGE_luci-app-adbyby-plus is not set
+          CONFIG_PACKAGE_luci-app-aria2=y
+          CONFIG_PACKAGE_luci-app-baidupcs-web=y
+          # CONFIG_PACKAGE_luci-app-ddns is not set
+          # CONFIG_PACKAGE_luci-app-filetransfer is not set
+          CONFIG_PACKAGE_luci-app-hd-idle=y
+          # CONFIG_PACKAGE_luci-app-ipsec-vpnd is not set
+          CONFIG_PACKAGE_luci-app-minidlna=y
+          # CONFIG_PACKAGE_luci-app-nlbwmon is not set
+          # CONFIG_PACKAGE_luci-app-samba is not set
+          CONFIG_PACKAGE_luci-app-samba4=y
+          CONFIG_PACKAGE_luci-app-smartdns=y
+          # CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_ShadowsocksR_Libev_Client is not set
+          CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_ShadowsocksR_Libev_Server-zh=y
+          # CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Shadowsocks_Libev_Client is not set
+          CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Shadowsocks_Libev_Server-zh=y
+          # CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Simple_Obfs is not set
+          # CONFIG_PACKAGE_luci-app-vsftpd is not set
+          # CONFIG_PACKAGE_luci-app-wol is not set
+          CONFIG_PACKAGE_luci-app-zerotier-zh=y
+          CONFIG_PACKAGE_luci-i18n-aria2-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-hd-idle-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-minidlna-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-samba4-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-smartdns-zh-cn=y
+          # CONFIG_PACKAGE_luci-lib-fs is not set
+          CONFIG_PACKAGE_minidlna=y
+          # CONFIG_PACKAGE_nlbwmon is not set
+          CONFIG_PACKAGE_ntfs-3g=y
+          # CONFIG_PACKAGE_samba36-server is not set
+          CONFIG_PACKAGE_samba4-libs=y
+          CONFIG_PACKAGE_samba4-server=y
+          # CONFIG_PACKAGE_shadowsocks-libev-ss-local is not set
+          # CONFIG_PACKAGE_shadowsocks-libev-ss-redir is not set
+          CONFIG_PACKAGE_shadowsocks-libev-ss-server=y
+          # CONFIG_PACKAGE_shadowsocksr-libev-ssr-local is not set
+          # CONFIG_PACKAGE_shadowsocksr-libev-ssr-redir is not set
+          #CONFIG_PACKAGE_shadowsocksr-libev-ssr-server is not set
+          # CONFIG_PACKAGE_simple-obfs-client is not set
+          CONFIG_PACKAGE_smartdns=y
+          # CONFIG_PACKAGE_strongswan is not set
+          # CONFIG_PACKAGE_vsftpd-alt is not set
+          # CONFIG_PACKAGE_wol is not set
+          # CONFIG_PACKAGE_zerotier is not set
+          CONFIG_SAMBA4_SERVER_AVAHI=y
+          CONFIG_SAMBA4_SERVER_NETBIOS=y
+          CONFIG_SAMBA4_SERVER_VFS=y
+          CONFIG_SAMBA4_SERVER_WSDD2=y
+          CONFIG_SQLITE3_DYNAMIC_EXTENSIONS=y
+          CONFIG_SQLITE3_FTS3=y
+          CONFIG_SQLITE3_FTS4=y
+          CONFIG_SQLITE3_FTS5=y
+          CONFIG_SQLITE3_JSON1=y
+          CONFIG_SQLITE3_RTREE=y
+          CONFIG_KERNEL_BUILD_USER="OpenWrt-R7800"
+          CONFIG_KERNEL_BUILD_DOMAIN="Azure"
+          EOF
+
+          #
+          # ===============================================================
+          # 
+
+          sed -i 's/^[ \t]*//g' ./.config
+          make defconfig
+
+      - name: Make download
+        run: |
+          make download -j8 || make download -j1 V=s
+          rm -rf $(find ./dl/ -size -1024c)
+          df -h
+
+      - name: Compile firmware
+        run: |
+          make -j$(nproc) || make -j1 V=s
+          echo "======================="
+          echo "Space usage:"
+          echo "======================="
+          df -h
+          echo "======================="
+          du -h ./ --max-depth=1
+          du -h /mnt/openwrt/ --max-depth=1 || true
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p ./artifact/firmware
+          mkdir -p ./artifact/package
+          mkdir -p ./artifact/buildinfo
+          rm -rf $(find ./bin/targets/ -type d -name "packages")
+          cp -rf $(find ./bin/targets/ -type f) ./artifact/firmware/
+          cp -rf $(find ./bin/packages/ -type f -name "*.ipk") ./artifact/package/
+          cp -rf $(find ./bin/targets/ -type f -name "*.buildinfo" -o -name "*.manifest") ./artifact/buildinfo/
+
+      - name: Deliver buildinfo
+        uses: actions/upload-artifact@v2
+        with:
+          name: OpenWrt_buildinfo
+          path: ./artifact/buildinfo/
+
+      - name: Deliver package
+        uses: actions/upload-artifact@v2
+        with:
+          name: OpenWrt_package
+          path: ./artifact/package/
+
+      - name: Deliver firmware
+        uses: actions/upload-artifact@v2
+        with:
+          name: OpenWrt_firmware
+          path: ./bin/targets/
+
+      - name: Upload release asset
+        if: github.event == 'release'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.YOURTOKEN }}
+          file: ./artifact/firmware/*
+          tag: ${{ github.ref }}
+          file_glob: true
